@@ -1,6 +1,8 @@
 //! Rust-Wrapper for youtube-dl
 
+use std::fmt;
 use std::{
+    fmt::{Display, Formatter},
     fs::{canonicalize, create_dir_all},
     io::Error,
     path::PathBuf,
@@ -8,18 +10,44 @@ use std::{
 };
 use std::{path::Path, process::Command};
 
+pub struct Arg {
+    arg: String,
+    input: Option<String>,
+}
+
+impl Arg {
+    pub fn new(argument: &str) -> Arg {
+        Arg {
+            arg: argument.to_string(),
+            input: None,
+        }
+    }
+
+    pub fn new_with_arg(argument: &str, input: &str) -> Arg {
+        Arg {
+            arg: argument.to_string(),
+            input: Option::from(input.to_string()),
+        }
+    }
+}
+
+impl Display for Arg {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        match &self.input {
+            Some(input) => write!(fmt, "{} {}", self.arg, input),
+            None => write!(fmt, "{}", self.arg),
+        }
+    }
+}
+
 pub struct YoutubeDL {
     path: PathBuf,
     link: String,
-    args: Vec<(String, Option<String>)>,
+    args: Vec<Arg>,
 }
 
 impl YoutubeDL {
-    pub fn new(
-        dl_path: &str,
-        args: Vec<(String, Option<String>)>,
-        link: String,
-    ) -> Result<YoutubeDL, String> {
+    pub fn new(dl_path: &str, args: Vec<Arg>, link: String) -> Result<YoutubeDL, String> {
         // create path
         let path = Path::new(dl_path);
 
@@ -63,10 +91,10 @@ impl YoutubeDL {
             .arg("--quiet")
             .arg("--no-warnings");
 
-        for (opt, arg) in self.args.iter() {
-            match arg {
-                Some(arg) => cmd.arg(opt).arg(arg),
-                None => cmd.arg(opt),
+        for arg in self.args.iter() {
+            match &arg.input {
+                Some(input) => cmd.arg(&arg.arg).arg(input),
+                None => cmd.arg(&arg.arg),
             };
         }
 
