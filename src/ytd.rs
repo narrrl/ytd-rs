@@ -122,7 +122,9 @@ impl YoutubeDL {
         cmd.arg(&self.link);
 
         let mut pr = match cmd.spawn() {
-            Err(why) => panic!("couldn't spawn youtube-dl: {:?}", why),
+            Err(why) => {
+                return Err(why);
+            }
             Ok(process) => process,
         };
         pr.wait()
