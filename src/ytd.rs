@@ -10,6 +10,23 @@ use std::{
 };
 use std::{path::Path, process::Command};
 
+/// A structure that represents an argument of a youtube-dl command.
+///
+/// There are two different kinds of Arg:
+/// - Option with no other input
+/// - Argument with input
+///
+/// # Example
+///
+/// ```
+/// // youtube-dl option to embed metadata into the file
+/// // doesn't take any input
+/// let simple_arg = Arg::new("--add-metadata");
+///
+/// // youtube-dl cookies argument that takes a path to
+/// // cookie file
+/// let input_arg = Arg::new("--cookie", "/path/to/cookie");
+/// ```
 pub struct Arg {
     arg: String,
     input: Option<String>,
@@ -40,6 +57,10 @@ impl Display for Arg {
     }
 }
 
+/// Structure that represents a youtube-dl task.
+///
+/// Every task needs a download location [`path`], a list of ['Arg'] that can be empty
+/// and a ['link'] to the desired source.
 pub struct YoutubeDL {
     path: PathBuf,
     link: String,
