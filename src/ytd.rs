@@ -1,6 +1,9 @@
 //! Rust-Wrapper for youtube-dl
 
-use std::{fmt, process::Output};
+use std::{
+    fmt,
+    process::{Output, Stdio},
+};
 use std::{
     fmt::{Display, Formatter},
     fs::{canonicalize, create_dir_all},
@@ -105,8 +108,9 @@ impl YoutubeDL {
                     Ok(&self.path)
                 } else {
                     Err(format!(
-                        "Error downloading video: {:?}",
-                        output.stdout.as_slice()
+                        "Error downloading video: {:?}{:?}",
+                        output.stdout.as_slice(),
+                        output.stderr.as_slice()
                     ))
                 }
             }
@@ -120,7 +124,9 @@ impl YoutubeDL {
         cmd.arg("--output")
             .arg(format!("{}", path.display()))
             .arg("--quiet")
-            .arg("--no-warnings");
+            .arg("--no-warnings")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         for arg in self.args.iter() {
             match &arg.input {
