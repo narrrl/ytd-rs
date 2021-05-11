@@ -76,7 +76,10 @@ impl YoutubeDL {
         if !path.exists() {
             // if not create
             if let Err(why) = create_dir_all(&path) {
-                return Err(format!("Error while creating directories: {:?}", why));
+                return Err(format!(
+                    "Error while creating directories {}: {:?}",
+                    dl_path, why
+                ));
             }
         }
 
