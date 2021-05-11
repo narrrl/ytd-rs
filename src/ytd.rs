@@ -6,7 +6,6 @@ use std::{
     fs::{canonicalize, create_dir_all},
     io::Error,
     path::PathBuf,
-    process::ExitStatus,
 };
 use std::{path::Path, process::Command};
 
@@ -107,7 +106,7 @@ impl YoutubeDL {
                 } else {
                     Err(format!(
                         "Error downloading video: {:?}",
-                        output.stderr.as_slice()
+                        output.stdout.as_slice()
                     ))
                 }
             }
@@ -132,7 +131,7 @@ impl YoutubeDL {
 
         cmd.arg(&self.link);
 
-        let mut pr = match cmd.spawn() {
+        let pr = match cmd.spawn() {
             Err(why) => {
                 return Err(why);
             }
