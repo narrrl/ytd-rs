@@ -1,6 +1,6 @@
 //! Rust-Wrapper for youtube-dl
 
-use std::fmt;
+use std::{fmt, process::Output};
 use std::{
     fmt::{Display, Formatter},
     fs::{canonicalize, create_dir_all},
@@ -99,14 +99,22 @@ impl YoutubeDL {
     pub fn download(&self) -> Result<&PathBuf, String> {
         let result = self.spawn_youtube_dl();
 
-        if let Err(why) = result {
-            Err(format!("Error downloading video: {:?}", why))
-        } else {
-            Ok(&self.path)
+        match result {
+            Err(why) => Err(format!("Error downloading video: {:?}", why)),
+            Ok(output) => {
+                if output.status.success() {
+                    Ok(&self.path)
+                } else {
+                    Err(format!(
+                        "Error downloading video: {:?}",
+                        output.stderr.as_slice()
+                    ))
+                }
+            }
         }
     }
 
-    fn spawn_youtube_dl(&self) -> Result<ExitStatus, Error> {
+    fn spawn_youtube_dl(&self) -> Result<Output, Error> {
         let mut path = self.path.clone();
         path.push("%(title).90s.%(ext)s");
         let mut cmd = Command::new("youtube-dl");
@@ -130,6 +138,6 @@ impl YoutubeDL {
             }
             Ok(process) => process,
         };
-        pr.wait()
+        pr.wait_with_output()
     }
 }
