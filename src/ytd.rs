@@ -108,9 +108,8 @@ impl YoutubeDL {
                     Ok(&self.path)
                 } else {
                     Err(format!(
-                        "Error downloading video: {:?}{:?}",
-                        output.stdout.as_slice(),
-                        output.stderr.as_slice()
+                        "Error downloading video: {}",
+                        String::from_utf8_lossy(&output.stderr)
                     ))
                 }
             }
