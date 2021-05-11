@@ -76,7 +76,7 @@ impl YoutubeDL {
         if !path.exists() {
             // if not create
             if let Err(why) = create_dir_all(&path) {
-                return Err(format!("Error: {:?}", why));
+                return Err(format!("Error while creating directories: {:?}", why));
             }
         }
 
@@ -89,7 +89,7 @@ impl YoutubeDL {
         match canonicalize(dl_path) {
             // return new youtube-dl job
             Ok(path) => Ok(YoutubeDL { path, link, args }),
-            Err(why) => Err(format!("Error: {:?}", why)),
+            Err(why) => Err(format!("Error creating YouTubeDL: {:?}", why)),
         }
     }
 
@@ -97,7 +97,7 @@ impl YoutubeDL {
         let result = self.spawn_youtube_dl();
 
         if let Err(why) = result {
-            Err(format!("Error: {:?}", why))
+            Err(format!("Error downloading video: {:?}", why))
         } else {
             Ok(&self.path)
         }
