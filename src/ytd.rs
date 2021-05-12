@@ -29,6 +29,7 @@ use std::{path::Path, process::Command};
 /// // cookie file
 /// let input_arg = Arg::new("--cookie", "/path/to/cookie");
 /// ```
+#[derive(Clone, Debug)]
 pub struct Arg {
     arg: String,
     input: Option<String>,
@@ -69,6 +70,8 @@ pub struct YoutubeDL {
     args: Vec<Arg>,
 }
 
+pub struct YouubeDLResult {}
+
 impl YoutubeDL {
     pub fn new(dl_path: &str, args: Vec<Arg>, link: String) -> Result<YoutubeDL, String> {
         // create path
@@ -98,32 +101,27 @@ impl YoutubeDL {
         }
     }
 
-    pub fn download(&self) -> Result<&PathBuf, String> {
+    pub fn download(&self) -> Result<&PathBuf, Error> {
         let result = self.spawn_youtube_dl();
 
-        match result {
-            Err(why) => Err(format!("Error downloading video: {:?}", why)),
-            Ok(output) => {
-                if output.status.success() {
-                    Ok(&self.path)
-                } else {
-                    Err(format!(
-                        "Error downloading video: {}",
-                        String::from_utf8_lossy(&output.stderr)
-                    ))
-                }
-            }
+        let output = match result {
+            Err(why) => return Err(why),
+            Ok(output) => output,
+        };
+
+        if output.status.success() {
+            Ok(&self.path)
+        } else {
+            Err(Error::new(
+                std::io::ErrorKind::InvalidInput,
+                String::from_utf8_lossy(&output.stderr).to_string(),
+            ))
         }
     }
 
     fn spawn_youtube_dl(&self) -> Result<Output, Error> {
-        let mut path = self.path.clone();
-        path.push("%(title).90s.%(ext)s");
         let mut cmd = Command::new("youtube-dl");
-        cmd.arg("--output")
-            .arg(format!("{}", path.display()))
-            .arg("--quiet")
-            .arg("--no-warnings")
+        cmd.current_dir(&self.path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
