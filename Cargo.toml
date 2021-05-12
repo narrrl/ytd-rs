@@ -11,4 +11,4 @@ readme = "README.md"
 
 
 [dependencies]
-regex = "1"
+regex = "1.5"
