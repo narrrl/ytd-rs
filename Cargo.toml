@@ -1,11 +1,11 @@
 [package]
 name = "ytd-rs"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Nils Pukropp <nils.pukropp@outlook.de>"]
 edition = "2018"
 license-file ="LICENSE"
 description = "A simple wrapper for youtube-dl. Youtube-dl has to be installed on the system"
-homepape = "https://github.com/Nirusu99/ytd-rs"
+homepage = "https://github.com/Nirusu99/ytd-rs"
 repository = "https://github.com/Nirusu99/ytd-rs"
 readme = "README.md"
 
