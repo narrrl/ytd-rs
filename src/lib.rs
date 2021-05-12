@@ -89,7 +89,7 @@ impl Display for Arg {
 #[derive(Clone, Debug)]
 pub struct YoutubeDL {
     path: PathBuf,
-    link: String,
+    links: Vec<String>,
     args: Vec<Arg>,
 }
 
@@ -146,7 +146,11 @@ impl YoutubeDL {
     /// and finally a link that can be `""` if no video should be downloaded
     ///
     /// The path gets canonicalized and the directory gets created by the constructor
-    pub fn new(dl_path: &str, args: Vec<Arg>, link: &str) -> Result<YoutubeDL, String> {
+    pub fn new_multiple_links(
+        dl_path: &str,
+        args: Vec<Arg>,
+        links: Vec<String>,
+    ) -> Result<YoutubeDL, String> {
         // create path
         let path = Path::new(dl_path);
 
@@ -169,13 +173,13 @@ impl YoutubeDL {
         // absolute path
         match canonicalize(dl_path) {
             // return new youtube-dl job
-            Ok(path) => Ok(YoutubeDL {
-                path,
-                link: link.to_string(),
-                args,
-            }),
+            Ok(path) => Ok(YoutubeDL { path, links, args }),
             Err(why) => Err(format!("Error creating YouTubeDL: {:?}", why)),
         }
+    }
+
+    pub fn new(dl_path: &str, args: Vec<Arg>, link: &str) -> Result<YoutubeDL, String> {
+        YoutubeDL::new_multiple_links(dl_path, args, vec![link.to_string()])
     }
 
     /// Starts the download and returns when finished the result as [`YoutubeDLResult`].
@@ -215,7 +219,9 @@ impl YoutubeDL {
             };
         }
 
-        cmd.arg(&self.link);
+        for link in self.links.iter() {
+            cmd.arg(&link);
+        }
 
         let pr = match cmd.spawn() {
             Err(why) => {
