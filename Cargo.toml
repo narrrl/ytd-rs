@@ -9,3 +9,6 @@ homepape = "https://github.com/Nirusu99/ytd-rs"
 repository = "https://github.com/Nirusu99/ytd-rs"
 readme = "README.md"
 
+
+[dependencies]
+regex = "1"
