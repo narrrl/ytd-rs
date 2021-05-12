@@ -64,13 +64,48 @@ impl Display for Arg {
 ///
 /// Every task needs a download location [`path`], a list of ['Arg'] that can be empty
 /// and a ['link'] to the desired source.
+#[derive(Clone, Debug)]
 pub struct YoutubeDL {
     path: PathBuf,
     link: String,
     args: Vec<Arg>,
 }
 
-pub struct YouubeDLResult {}
+#[derive(Debug, Clone)]
+pub struct YoutubeDLResult {
+    path: PathBuf,
+    output: String,
+    kind: ResultType,
+}
+
+impl YoutubeDLResult {
+    pub fn new(path: PathBuf) -> YoutubeDLResult {
+        YoutubeDLResult {
+            path,
+            output: String::new(),
+            kind: ResultType::FAILURE,
+        }
+    }
+
+    pub fn result_type(&self) -> &ResultType {
+        &self.kind
+    }
+
+    pub fn output(&self) -> &str {
+        &self.output
+    }
+
+    pub fn output_dir(&self) -> &PathBuf {
+        &self.path
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ResultType {
+    SUCCESS,
+    FAILURE,
+    IOERROR,
+}
 
 impl YoutubeDL {
     pub fn new(dl_path: &str, args: Vec<Arg>, link: String) -> Result<YoutubeDL, String> {
@@ -101,22 +136,27 @@ impl YoutubeDL {
         }
     }
 
-    pub fn download(&self) -> Result<&PathBuf, Error> {
-        let result = self.spawn_youtube_dl();
+    pub fn download(&self) -> YoutubeDLResult {
+        let pr_result = self.spawn_youtube_dl();
+        let mut result = YoutubeDLResult::new(self.path.clone());
 
-        let output = match result {
-            Err(why) => return Err(why),
+        let output = match pr_result {
+            Err(why) => {
+                result.output = why.to_string();
+                result.kind = ResultType::IOERROR;
+                return result;
+            }
             Ok(output) => output,
         };
 
         if output.status.success() {
-            Ok(&self.path)
+            result.kind = ResultType::SUCCESS;
+            result.output = String::from_utf8_lossy(&output.stdout).to_string();
         } else {
-            Err(Error::new(
-                std::io::ErrorKind::InvalidInput,
-                String::from_utf8_lossy(&output.stderr).to_string(),
-            ))
+            result.output = String::from_utf8_lossy(&output.stderr).to_string();
         }
+
+        result
     }
 
     fn spawn_youtube_dl(&self) -> Result<Output, Error> {
