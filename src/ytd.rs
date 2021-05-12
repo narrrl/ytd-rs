@@ -21,13 +21,14 @@ use std::{path::Path, process::Command};
 /// # Example
 ///
 /// ```
+/// use ytd_rs::ytd::Arg;
 /// // youtube-dl option to embed metadata into the file
 /// // doesn't take any input
 /// let simple_arg = Arg::new("--add-metadata");
 ///
 /// // youtube-dl cookies argument that takes a path to
 /// // cookie file
-/// let input_arg = Arg::new("--cookie", "/path/to/cookie");
+/// let input_arg = Arg::new_with_arg("--cookie", "/path/to/cookie");
 /// ```
 #[derive(Clone, Debug)]
 pub struct Arg {
