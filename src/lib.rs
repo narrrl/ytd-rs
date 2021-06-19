@@ -209,6 +209,7 @@ impl YoutubeDL {
     fn spawn_youtube_dl(&self) -> Result<Output, Error> {
         let mut cmd = Command::new("youtube-dl");
         cmd.current_dir(&self.path)
+            .env("LC_ALL", "en_US.UTF-8")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
