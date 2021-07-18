@@ -8,7 +8,7 @@ use ytd_rs::{YoutubeDL, ResultType, Arg};
 // one doesn't take any input and is an option, the other takes the desired output format as input
 let args = vec![Arg::new("--quiet"), Arg::new_with_arg("--output", "%(title).90s.%(ext)s")];
 let link = "https://www.youtube.com/watch?v=uTO0KnDsVH0";
-let ytd = YoutubeDL::new("./path/to/download/directory", args, link).unwrap();
+let ytd = YoutubeDL::new("./path/to/download/directory", args, link)?;
 
 // start download
 let download = ytd.download();

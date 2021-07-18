@@ -4,34 +4,42 @@
 //!
 //! ```no_run
 //! use ytd_rs::{YoutubeDL, ResultType, Arg};
-//! // youtube-dl arguments quietly run process and to format the output
-//! // one doesn't take any input and is an option, the other takes the desired output format as input
-//! let args = vec![Arg::new("--quiet"), Arg::new_with_arg("--output", "%(title).90s.%(ext)s")];
-//! let link = "https://www.youtube.com/watch?v=uTO0KnDsVH0";
-//! let ytd = YoutubeDL::new("./path/to/download/directory", args, link).unwrap();
+//! use std::path::PathBuf;
+//! use std::error::Error;
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     // youtube-dl arguments quietly run process and to format the output
+//!     // one doesn't take any input and is an option, the other takes the desired output format as input
+//!     let args = vec![Arg::new("--quiet"), Arg::new_with_arg("--output", "%(title).90s.%(ext)s")];
+//!     let link = "https://www.youtube.com/watch?v=uTO0KnDsVH0";
+//!     let path = PathBuf::from("./path/to/download/directory");
+//!     let ytd = YoutubeDL::new(&path, args, link)?;
 //!
-//! // start download
-//! let download = ytd.download();
+//!     // start download
+//!     let download = ytd.download();
 //!
-//! // check what the result is and print out the path to the download or the error
-//! match download.result_type() {
-//!     ResultType::SUCCESS => println!("Your download: {}", download.output_dir().to_string_lossy()),
-//!     ResultType::IOERROR | ResultType::FAILURE =>
-//!             println!("Couldn't start download: {}", download.output()),
-//! };
+//!     // check what the result is and print out the path to the download or the error
+//!     match download.result_type() {
+//!         ResultType::SUCCESS => println!("Your download: {}", download.output_dir().to_string_lossy()),
+//!         ResultType::IOERROR | ResultType::FAILURE =>
+//!                 println!("Couldn't start download: {}", download.output()),
+//!     };
+//! Ok(())
+//! }
 //! ```
 
 use std::{
+    error::Error,
     fmt,
     process::{Output, Stdio},
 };
 use std::{
     fmt::{Display, Formatter},
     fs::{canonicalize, create_dir_all},
-    io::Error,
     path::PathBuf,
 };
 use std::{path::Path, process::Command};
+
+type Result<T> = std::result::Result<T, YoutubeDLError>;
 
 /// A structure that represents an argument of a youtube-dl command.
 ///
@@ -82,6 +90,31 @@ impl Display for Arg {
     }
 }
 
+#[derive(Debug)]
+pub struct YoutubeDLError {
+    message: String,
+}
+
+impl YoutubeDLError {
+    pub fn new(message: &str) -> YoutubeDLError {
+        YoutubeDLError {
+            message: message.to_string(),
+        }
+    }
+}
+
+impl fmt::Display for YoutubeDLError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl Error for YoutubeDLError {
+    fn description(&self) -> &str {
+        self.message.as_ref()
+    }
+}
+
 /// Structure that represents a youtube-dl task.
 ///
 /// Every task needs a download location, a list of ['Arg'] that can be empty
@@ -108,9 +141,9 @@ pub struct YoutubeDLResult {
 
 impl YoutubeDLResult {
     /// creates a new YoutubeDLResult
-    fn new(path: PathBuf) -> YoutubeDLResult {
+    fn new(path: &PathBuf) -> YoutubeDLResult {
         YoutubeDLResult {
-            path,
+            path: path.clone(),
             output: String::new(),
             kind: ResultType::FAILURE,
         }
@@ -147,10 +180,10 @@ impl YoutubeDL {
     ///
     /// The path gets canonicalized and the directory gets created by the constructor
     pub fn new_multiple_links(
-        dl_path: &str,
+        dl_path: &PathBuf,
         args: Vec<Arg>,
         links: Vec<String>,
-    ) -> Result<YoutubeDL, String> {
+    ) -> Result<YoutubeDL> {
         // create path
         let path = Path::new(dl_path);
 
@@ -158,34 +191,40 @@ impl YoutubeDL {
         if !path.exists() {
             // if not create
             if let Err(why) = create_dir_all(&path) {
-                return Err(format!(
-                    "Error while creating directories {}: {:?}",
-                    dl_path, why
+                return Err(YoutubeDLError::new(
+                    format!(
+                        "Error while creating directories {}: {:?}",
+                        dl_path.to_string_lossy(),
+                        why
+                    )
+                    .as_ref(),
                 ));
             }
         }
 
         // return error if no directory
         if !path.is_dir() {
-            return Err("Error: path is not a directory".to_string());
+            return Err(YoutubeDLError::new("Error: path is not a directory"));
         }
 
         // absolute path
         match canonicalize(dl_path) {
             // return new youtube-dl job
             Ok(path) => Ok(YoutubeDL { path, links, args }),
-            Err(why) => Err(format!("Error creating YouTubeDL: {:?}", why)),
+            Err(why) => Err(YoutubeDLError::new(
+                format!("Error creating YouTubeDL: {:?}", why).as_ref(),
+            )),
         }
     }
 
-    pub fn new(dl_path: &str, args: Vec<Arg>, link: &str) -> Result<YoutubeDL, String> {
+    pub fn new(dl_path: &PathBuf, args: Vec<Arg>, link: &str) -> Result<YoutubeDL> {
         YoutubeDL::new_multiple_links(dl_path, args, vec![link.to_string()])
     }
 
     /// Starts the download and returns when finished the result as [`YoutubeDLResult`].
     pub fn download(&self) -> YoutubeDLResult {
         let pr_result = self.spawn_youtube_dl();
-        let mut result = YoutubeDLResult::new(self.path.clone());
+        let mut result = YoutubeDLResult::new(&self.path);
 
         let output = match pr_result {
             Err(why) => {
@@ -206,7 +245,7 @@ impl YoutubeDL {
         result
     }
 
-    fn spawn_youtube_dl(&self) -> Result<Output, Error> {
+    fn spawn_youtube_dl(&self) -> Result<Output> {
         let mut cmd = Command::new("youtube-dl");
         cmd.current_dir(&self.path)
             .env("LC_ALL", "en_US.UTF-8")
@@ -226,11 +265,18 @@ impl YoutubeDL {
 
         let pr = match cmd.spawn() {
             Err(why) => {
-                return Err(why);
+                return Err(YoutubeDLError::new(
+                    format!("Error, YoutubeDL exited with {:?}", why).as_ref(),
+                ));
             }
             Ok(process) => process,
         };
-        pr.wait_with_output()
+        match pr.wait_with_output() {
+            Ok(output) => Ok(output),
+            Err(why) => Err(YoutubeDLError::new(
+                format!("Error, YoutubeDL exited with {:?}", why).as_ref(),
+            )),
+        }
     }
 }
 
@@ -238,27 +284,25 @@ impl YoutubeDL {
 mod tests {
     use crate::{Arg, YoutubeDL};
     use regex::Regex;
-    use std::env;
+    use std::{env, error::Error};
 
     #[test]
-    fn version() {
+    fn version() -> Result<(), Box<dyn Error>> {
+        let current_dir = env::current_dir()?;
         let ytd = YoutubeDL::new(
-            env::current_dir()
-                .expect("couldn't get working directory")
-                .to_str()
-                .unwrap(),
+            &current_dir,
             // get youtube-dl version
             vec![Arg::new("--version")],
             // we don't need a link to print version
             "",
-        )
-        .expect("Couldn't create youtube-dl");
+        )?;
 
-        let regex = Regex::new(r"\d{4}\.\d{2}\.\d{2}").unwrap();
+        let regex = Regex::new(r"\d{4}\.\d{2}\.\d{2}")?;
         let output = ytd.download();
 
         // check output
         // fails if youtube-dl is not installed
         assert!(regex.is_match(output.output()));
+        Ok(())
     }
 }
