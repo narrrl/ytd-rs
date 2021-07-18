@@ -1,6 +1,6 @@
 # ytd-rs
 
-![crates.io](https://img.shields.io/crates/v/ytd-rs.svg) ![docs.rs](https://docs.rs/ytd-rs/badge.svg)
+![example workflow](https://github.com/nirusu99/ytd-rs/actions/workflows/rust.yml/badge.svg) ![crates.io](https://img.shields.io/crates/v/ytd-rs.svg) ![docs.rs](https://docs.rs/ytd-rs/badge.svg)
 
 This is a simple wrapper for [youtube-dl](https://youtube-dl.org/) in rust.
 
