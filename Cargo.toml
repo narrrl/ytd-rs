@@ -1,6 +1,6 @@
 [package]
 name = "ytd-rs"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Nils Pukropp <nils.pukropp@outlook.de>"]
 edition = "2018"
 license-file ="LICENSE"
