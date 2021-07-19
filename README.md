@@ -25,6 +25,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ResultType::IOERROR | ResultType::FAILURE =>
                 println!("Couldn't start download: {}", download.output()),
     };
-Ok(())
+    Ok(())
 }
 ```
