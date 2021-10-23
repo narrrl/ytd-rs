@@ -41,6 +41,14 @@ use std::{path::Path, process::Command};
 
 type Result<T> = std::result::Result<T, YoutubeDLError>;
 
+const YOUTUBE_DL_COMMAND: &str = if cfg!(feature = "youtube-dlc") {
+    "youtube-dlc"
+} else if cfg!(feature = "yt-dlp") {
+    "yt-dlp"
+} else {
+    "youtube-dl"
+};
+
 /// A structure that represents an argument of a youtube-dl command.
 ///
 /// There are two different kinds of Arg:
@@ -246,7 +254,7 @@ impl YoutubeDL {
     }
 
     fn spawn_youtube_dl(&self) -> Result<Output> {
-        let mut cmd = Command::new("youtube-dl");
+        let mut cmd = Command::new(YOUTUBE_DL_COMMAND);
         cmd.current_dir(&self.path)
             .env("LC_ALL", "en_US.UTF-8")
             .stdout(Stdio::piped())
