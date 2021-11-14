@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use ytd_rs::{YoutubeDL, ResultType, Arg};
+//! use ytd_rs::{YoutubeDL, Arg};
 //! use std::path::PathBuf;
 //! use std::error::Error;
 //! fn main() -> Result<(), Box<dyn Error>> {
@@ -15,20 +15,16 @@
 //!     let ytd = YoutubeDL::new(&path, args, link)?;
 //!
 //!     // start download
-//!     let download = ytd.download();
+//!     let download = ytd.download()?;
 //!
 //!     // check what the result is and print out the path to the download or the error
-//!     match download.result_type() {
-//!         ResultType::SUCCESS => println!("Your download: {}", download.output_dir().to_string_lossy()),
-//!         ResultType::IOERROR | ResultType::FAILURE =>
-//!                 println!("Couldn't start download: {}", download.output()),
-//!     };
-//! Ok(())
+//!     println!("Your download: {}", download.output_dir().to_string_lossy());
+//!     Ok(())
 //! }
 //! ```
 
+use error::YoutubeDLError;
 use std::{
-    error::Error,
     fmt,
     process::{Output, Stdio},
 };
@@ -39,6 +35,7 @@ use std::{
 };
 use std::{path::Path, process::Command};
 
+pub mod error;
 type Result<T> = std::result::Result<T, YoutubeDLError>;
 
 const YOUTUBE_DL_COMMAND: &str = if cfg!(feature = "youtube-dlc") {
@@ -98,31 +95,6 @@ impl Display for Arg {
     }
 }
 
-#[derive(Debug)]
-pub struct YoutubeDLError {
-    message: String,
-}
-
-impl YoutubeDLError {
-    pub fn new(message: &str) -> YoutubeDLError {
-        YoutubeDLError {
-            message: message.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for YoutubeDLError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl Error for YoutubeDLError {
-    fn description(&self) -> &str {
-        self.message.as_ref()
-    }
-}
-
 /// Structure that represents a youtube-dl task.
 ///
 /// Every task needs a download location, a list of ['Arg'] that can be empty
@@ -144,7 +116,6 @@ pub struct YoutubeDL {
 pub struct YoutubeDLResult {
     path: PathBuf,
     output: String,
-    kind: ResultType,
 }
 
 impl YoutubeDLResult {
@@ -153,13 +124,7 @@ impl YoutubeDLResult {
         YoutubeDLResult {
             path: path.clone(),
             output: String::new(),
-            kind: ResultType::FAILURE,
         }
-    }
-
-    /// get the exit status of the process
-    pub fn result_type(&self) -> &ResultType {
-        &self.kind
     }
 
     /// get the output of the youtube-dl process
@@ -171,14 +136,6 @@ impl YoutubeDLResult {
     pub fn output_dir(&self) -> &PathBuf {
         &self.path
     }
-}
-
-/// Represents the different exit types of the [`YoutubeDL`] process
-#[derive(Debug, Clone)]
-pub enum ResultType {
-    SUCCESS,
-    FAILURE,
-    IOERROR,
 }
 
 impl YoutubeDL {
@@ -198,31 +155,20 @@ impl YoutubeDL {
         // check if it already exists
         if !path.exists() {
             // if not create
-            if let Err(why) = create_dir_all(&path) {
-                return Err(YoutubeDLError::new(
-                    format!(
-                        "Error while creating directories {}: {:?}",
-                        dl_path.to_string_lossy(),
-                        why
-                    )
-                    .as_ref(),
-                ));
-            }
+            create_dir_all(&path)?;
         }
 
         // return error if no directory
         if !path.is_dir() {
-            return Err(YoutubeDLError::new("Error: path is not a directory"));
+            return Err(YoutubeDLError::IOError(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "path is not a directory",
+            )));
         }
 
         // absolute path
-        match canonicalize(dl_path) {
-            // return new youtube-dl job
-            Ok(path) => Ok(YoutubeDL { path, links, args }),
-            Err(why) => Err(YoutubeDLError::new(
-                format!("Error creating YouTubeDL: {:?}", why).as_ref(),
-            )),
-        }
+        let path = canonicalize(dl_path)?;
+        Ok(YoutubeDL { path, links, args })
     }
 
     pub fn new(dl_path: &PathBuf, args: Vec<Arg>, link: &str) -> Result<YoutubeDL> {
@@ -230,27 +176,16 @@ impl YoutubeDL {
     }
 
     /// Starts the download and returns when finished the result as [`YoutubeDLResult`].
-    pub fn download(&self) -> YoutubeDLResult {
-        let pr_result = self.spawn_youtube_dl();
+    pub fn download(&self) -> Result<YoutubeDLResult> {
+        let output = self.spawn_youtube_dl()?;
         let mut result = YoutubeDLResult::new(&self.path);
 
-        let output = match pr_result {
-            Err(why) => {
-                result.output = why.to_string();
-                result.kind = ResultType::IOERROR;
-                return result;
-            }
-            Ok(output) => output,
-        };
-
-        if output.status.success() {
-            result.kind = ResultType::SUCCESS;
-            result.output = String::from_utf8_lossy(&output.stdout).to_string();
-        } else {
-            result.output = String::from_utf8_lossy(&output.stderr).to_string();
+        if !output.status.success() {
+            return Err(YoutubeDLError::Failure(String::from_utf8(output.stderr)?));
         }
+        result.output = String::from_utf8(output.stdout)?;
 
-        result
+        Ok(result)
     }
 
     fn spawn_youtube_dl(&self) -> Result<Output> {
@@ -271,20 +206,8 @@ impl YoutubeDL {
             cmd.arg(&link);
         }
 
-        let pr = match cmd.spawn() {
-            Err(why) => {
-                return Err(YoutubeDLError::new(
-                    format!("Error, YoutubeDL exited with {:?}", why).as_ref(),
-                ));
-            }
-            Ok(process) => process,
-        };
-        match pr.wait_with_output() {
-            Ok(output) => Ok(output),
-            Err(why) => Err(YoutubeDLError::new(
-                format!("Error, YoutubeDL exited with {:?}", why).as_ref(),
-            )),
-        }
+        let pr = cmd.spawn()?;
+        Ok(pr.wait_with_output()?)
     }
 }
 
@@ -306,7 +229,7 @@ mod tests {
         )?;
 
         let regex = Regex::new(r"\d{4}\.\d{2}\.\d{2}")?;
-        let output = ytd.download();
+        let output = ytd.download()?;
 
         // check output
         // fails if youtube-dl is not installed

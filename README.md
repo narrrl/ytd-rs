@@ -6,7 +6,7 @@
 This is a simple wrapper for [youtube-dl](https://youtube-dl.org/) in rust.
 
 ```rust
-use ytd_rs::{YoutubeDL, ResultType, Arg};
+use ytd_rs::{YoutubeDL, Arg};
 use std::path::PathBuf;
 use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
@@ -18,14 +18,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ytd = YoutubeDL::new(&path, args, link)?;
 
     // start download
-    let download = ytd.download();
+    let download = ytd.download()?;
 
-    // check what the result is and print out the path to the download or the error
-    match download.result_type() {
-        ResultType::SUCCESS => println!("Your download: {}", download.output_dir().to_string_lossy()),
-        ResultType::IOERROR | ResultType::FAILURE =>
-                println!("Couldn't start download: {}", download.output()),
-    };
+    // print out the download path
+    println!("Your download: {}", download.output_dir().to_string_lossy())
     Ok(())
 }
 ```

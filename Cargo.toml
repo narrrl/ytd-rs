@@ -1,6 +1,6 @@
 [package]
 name = "ytd-rs"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Nils Pukropp <nils.pukropp@outlook.de>"]
 edition = "2018"
 license-file ="LICENSE"
@@ -16,3 +16,4 @@ youtube-dlc = []
 
 [dependencies]
 regex = "1.5"
+thiserror = "1.0"
