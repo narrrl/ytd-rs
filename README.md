@@ -5,6 +5,15 @@
 
 This is a simple wrapper for [youtube-dl](https://youtube-dl.org/) in rust.
 
+
+## Some dumb ideas for the new release:
+
+- [ ] Easy access to downloaded files with support for:
+    - [ ] fetching metadata for video files
+    - [ ] fetching metadata for image files
+    - [ ] fetching metadata for audio files
+- [ ] implement Send + Sync for errors
+
 ```rust
 use ytd_rs::{YoutubeDL, Arg};
 use std::path::PathBuf;
