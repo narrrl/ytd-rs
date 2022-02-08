@@ -2,6 +2,7 @@
 [![Build status](https://github.com/nirusu99/ytd-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/nirusu99/ytd-rs/actions)
 [![crates.io](https://img.shields.io/crates/v/ytd-rs.svg)](https://crates.io/crates/ytd-rs)
 [![docs.rs](https://docs.rs/ytd-rs/badge.svg)](https://docs.rs/ytd-rs)
+[![dependency status](https://deps.rs/repo/github/nirusu99/ytd-rs/status.svg)](https://deps.rs/repo/github/nirusu99/ytd-rs)
 
 This is a simple wrapper for [youtube-dl](https://youtube-dl.org/) in rust.
 
