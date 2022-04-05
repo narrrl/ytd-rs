@@ -15,5 +15,5 @@ youtube-dlc = []
 
 
 [dependencies]
-regex = "1.5"
-thiserror = "1.0"
+regex = "1.5.5"
+thiserror = "1.0.30"
