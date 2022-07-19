@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let download = ytd.download()?;
 
     // print out the download path
-    println!("Your download: {}", download.output_dir().to_string_lossy())
+    println!("Your download: {}", download.output_dir().to_string_lossy());
     Ok(())
 }
 ```
