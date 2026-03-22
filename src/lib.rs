@@ -150,6 +150,11 @@ impl YtDlp {
         self.arg_with("--audio-format", format)
     }
 
+    /// Configures yt-dlp to download only the best audio and extract it to the given format (e.g., "mp3").
+    pub fn extract_audio_only(self, format: impl Into<String>) -> Self {
+        self.best_audio().extract_audio(true).audio_format(format)
+    }
+
     /// Convenience method for --output template.
     pub fn output_template(self, template: impl Into<String>) -> Self {
         self.arg_with("--output", template)
@@ -163,6 +168,11 @@ impl YtDlp {
     /// Select the best quality video and audio.
     pub fn best_quality(self) -> Self {
         self.format("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best")
+    }
+
+    /// Select the best quality audio only.
+    pub fn best_audio(self) -> Self {
+        self.format("bestaudio/best")
     }
 
     /// Path to a cookies file.

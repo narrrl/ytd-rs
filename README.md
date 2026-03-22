@@ -40,8 +40,7 @@ use ytd_rs::YtDlp;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     YtDlp::new("https://www.youtube.com/watch?v=uTO0KnDsVH0")
-        .extract_audio(true)
-        .audio_format("mp3")
+        .extract_audio_only("mp3")
         .download()
         .await?;
     Ok(())
