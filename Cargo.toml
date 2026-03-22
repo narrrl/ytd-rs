@@ -1,19 +1,18 @@
 [package]
 name = "ytd-rs"
-version = "0.1.7"
-authors = ["Nils Pukropp <nils.pukropp@outlook.de>"]
-edition = "2018"
-license-file ="LICENSE"
-description = "A simple wrapper for youtube-dl. Youtube-dl has to be installed on the system"
+version = "0.2.0"
+authors = ["Nils Pukropp <nils@narl.io>"]
+edition = "2024"
+license-file = "LICENSE"
+description = "An async, full-featured wrapper for yt-dlp."
 homepage = "https://github.com/Nirusu99/ytd-rs"
 repository = "https://github.com/Nirusu99/ytd-rs"
 readme = "README.md"
 
-[features]
-yt-dlp = []
-youtube-dlc = []
-
-
 [dependencies]
-regex = "1.5.5"
-thiserror = "1.0.30"
+regex = "1.11.1"
+thiserror = "2.0.11"
+log = "0.4.22"
+tokio = { version = "1.43.0", features = ["process", "rt", "rt-multi-thread", "macros", "fs", "io-util"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
