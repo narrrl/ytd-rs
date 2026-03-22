@@ -12,7 +12,7 @@
 //!     let ytd = YtDlp::new("https://www.youtube.com/watch?v=uTO0KnDsVH0")
 //!         .output_dir(path)
 //!         .arg("--quiet")
-//!         .arg("--output", "%(title).90s.%(ext)s");
+//!         .arg_with("--output", "%(title).90s.%(ext)s");
 //!
 //!     let result = ytd.download().await?;
 //!     println!("Download complete: {}", result.output());
@@ -195,7 +195,6 @@ impl YtDlp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
     #[tokio::test]
     async fn test_version() -> Result<()> {
@@ -209,9 +208,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_info() -> Result<()> {
-        // Use a very short/small video for testing if possible, or just check if it fails
-        // For local tests, we'll just check if it can spawn.
-        let ytd = YtDlp::new("https://www.youtube.com/watch?v=uTO0KnDsVH0");
         // We won't actually download in CI if it's too slow, but let's try a version check as a proxy
         let version = YtDlp::new("").arg("--version").download().await?;
         println!("yt-dlp version: {}", version.output());

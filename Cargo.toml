@@ -12,6 +12,6 @@ readme = "README.md"
 [dependencies]
 regex = "1.11.1"
 thiserror = "2.0.11"
-tokio = { version = "1.43.0", features = ["process", "rt", "macros", "fs"] }
+tokio = { version = "1.43.0", features = ["process", "rt", "rt-multi-thread", "macros", "fs"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
