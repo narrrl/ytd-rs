@@ -65,5 +65,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Streaming Output (Progress Bars)
+If you want to track the progress of a long-running download, you can stream the standard output line-by-line:
+```rust
+use ytd_rs::YtDlp;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut process = YtDlp::new("https://www.youtube.com/watch?v=uTO0KnDsVH0")
+        .download_process()
+        .await?;
+
+    while let Some(line) = process.next_line().await? {
+        // e.g. "[download]  10.0% of 50.00MiB at 1.00MiB/s ETA 00:50"
+        println!("yt-dlp output: {}", line);
+    }
+
+    process.wait().await?;
+    println!("Download finished successfully!");
+    Ok(())
+}
+```
+
 ## License
 MIT

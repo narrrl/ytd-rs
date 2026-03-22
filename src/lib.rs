@@ -25,7 +25,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::fs;
-use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, BufReader, Lines};
+use tokio::process::{ChildStdout, Command};
 
 pub mod error;
 
@@ -60,6 +61,36 @@ pub struct VideoInfo {
     pub description: Option<String>,
     #[serde(flatten)]
     pub extra: serde_json::Value,
+}
+
+/// A running yt-dlp process that allows streaming standard output (useful for progress bars).
+pub struct YtDlpChild {
+    child: tokio::process::Child,
+    stdout: Option<Lines<BufReader<ChildStdout>>>,
+}
+
+impl YtDlpChild {
+    /// Returns the next line of output from the process. Returns `None` if EOF is reached.
+    pub async fn next_line(&mut self) -> Result<Option<String>> {
+        if let Some(stdout) = &mut self.stdout {
+            match stdout.next_line().await {
+                Ok(line) => Ok(line),
+                Err(e) => Err(YtDlpError::IOError(e)),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Waits for the process to complete and checks its status.
+    pub async fn wait(mut self) -> Result<()> {
+        let status = self.child.wait().await?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(YtDlpError::Failure("Process failed".to_string()))
+        }
+    }
 }
 
 /// The main builder for configuring and running yt-dlp.
@@ -226,7 +257,7 @@ impl YtDlp {
 
     /// Executes yt-dlp and returns the standard output.
     pub async fn download(&self) -> Result<YtDlpResult> {
-        let output = self.spawn_yt_dlp(false).await?;
+        let output = self.spawn_yt_dlp(false).await?.wait_with_output().await?;
 
         if !output.status.success() {
             return Err(YtDlpError::Failure(String::from_utf8(output.stderr)?));
@@ -235,9 +266,21 @@ impl YtDlp {
         Ok(YtDlpResult::new(String::from_utf8(output.stdout)?))
     }
 
+    /// Executes yt-dlp as a continuous process, allowing line-by-line output streaming.
+    /// Automatically adds `--newline` so progress updates are written on new lines.
+    pub async fn download_process(&self) -> Result<YtDlpChild> {
+        let mut clone = self.clone();
+        clone = clone.arg("--newline");
+        let mut child = clone.spawn_yt_dlp(false).await?;
+        
+        let stdout = child.stdout.take().map(|stdout| BufReader::new(stdout).lines());
+
+        Ok(YtDlpChild { child, stdout })
+    }
+
     /// Executes yt-dlp with --dump-json and parses the output into VideoInfo.
     pub async fn get_info(&self) -> Result<Vec<VideoInfo>> {
-        let output = self.spawn_yt_dlp(true).await?;
+        let output = self.spawn_yt_dlp(true).await?.wait_with_output().await?;
 
         if !output.status.success() {
             return Err(YtDlpError::Failure(String::from_utf8(output.stderr)?));
@@ -255,7 +298,7 @@ impl YtDlp {
         Ok(infos)
     }
 
-    async fn spawn_yt_dlp(&self, dump_json: bool) -> Result<std::process::Output> {
+    async fn spawn_yt_dlp(&self, dump_json: bool) -> Result<tokio::process::Child> {
         if let Some(ref path) = self.output_dir {
             if !path.exists() {
                 fs::create_dir_all(path).await?;
@@ -287,8 +330,7 @@ impl YtDlp {
             cmd.arg(link);
         }
 
-        let output = cmd.spawn()?.wait_with_output().await?;
-        Ok(output)
+        Ok(cmd.spawn()?)
     }
 }
 
@@ -311,6 +353,24 @@ mod tests {
         // We won't actually download in CI if it's too slow, but let's try a version check as a proxy
         let version = YtDlp::new("").arg("--version").download().await?;
         println!("yt-dlp version: {}", version.output());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_download_process() -> Result<()> {
+        let mut process = YtDlp::new("").arg("--version").download_process().await?;
+        
+        let mut lines = Vec::new();
+        while let Some(line) = process.next_line().await? {
+            lines.push(line);
+        }
+        
+        process.wait().await?;
+        
+        assert!(!lines.is_empty());
+        assert!(regex::Regex::new(r"\d{4}\.\d{2}\.\d{2}")
+            .unwrap()
+            .is_match(&lines[0]));
         Ok(())
     }
 }
