@@ -328,8 +328,11 @@ impl YtDlp {
         let mut clone = self.clone();
         clone = clone.arg("--newline");
         let mut child = clone.spawn_yt_dlp(false).await?;
-        
-        let stdout = child.stdout.take().map(|stdout| BufReader::new(stdout).lines());
+
+        let stdout = child
+            .stdout
+            .take()
+            .map(|stdout| BufReader::new(stdout).lines());
 
         Ok(YtDlpChild { child, stdout })
     }
@@ -337,11 +340,14 @@ impl YtDlp {
     /// Executes yt-dlp and streams the raw media binary data to standard output.
     /// This automatically sets `--output -` and gives you access to the async stdout reader.
     pub async fn download_to_stream(&self) -> Result<YtDlpStream> {
-        info!("Starting binary stream download for links: {:?}", self.links);
+        info!(
+            "Starting binary stream download for links: {:?}",
+            self.links
+        );
         let mut clone = self.clone();
         clone = clone.arg_with("--output", "-");
         let mut child = clone.spawn_yt_dlp(false).await?;
-        
+
         let stdout = child.stdout.take().ok_or_else(|| {
             error!("Failed to capture stdout for binary stream");
             YtDlpError::Failure {
@@ -426,9 +432,11 @@ mod tests {
     async fn test_version() -> Result<()> {
         let ytd = YtDlp::new("").arg("--version");
         let result = ytd.download().await?;
-        assert!(regex::Regex::new(r"\d{4}\.\d{2}\.\d{2}")
-            .unwrap()
-            .is_match(result.output()));
+        assert!(
+            regex::Regex::new(r"\d{4}\.\d{2}\.\d{2}")
+                .unwrap()
+                .is_match(result.output())
+        );
         Ok(())
     }
 
@@ -443,18 +451,20 @@ mod tests {
     #[tokio::test]
     async fn test_download_process() -> Result<()> {
         let mut process = YtDlp::new("").arg("--version").download_process().await?;
-        
+
         let mut lines = Vec::new();
         while let Some(line) = process.next_line().await? {
             lines.push(line);
         }
-        
+
         process.wait().await?;
-        
+
         assert!(!lines.is_empty());
-        assert!(regex::Regex::new(r"\d{4}\.\d{2}\.\d{2}")
-            .unwrap()
-            .is_match(&lines[0]));
+        assert!(
+            regex::Regex::new(r"\d{4}\.\d{2}\.\d{2}")
+                .unwrap()
+                .is_match(&lines[0])
+        );
         Ok(())
     }
 }

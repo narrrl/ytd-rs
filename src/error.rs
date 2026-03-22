@@ -9,8 +9,5 @@ pub enum YtDlpError {
     #[error("failed to parse JSON: {0}")]
     JsonError(#[from] serde_json::Error),
     #[error("yt-dlp exited with status {code:?}: {stderr}")]
-    Failure {
-        code: Option<i32>,
-        stderr: String,
-    },
+    Failure { code: Option<i32>, stderr: String },
 }
