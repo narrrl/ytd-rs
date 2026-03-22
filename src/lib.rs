@@ -21,6 +21,7 @@
 //! ```
 
 use crate::error::YtDlpError;
+use log::{debug, error, info, trace};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -291,18 +292,23 @@ impl YtDlp {
 
     /// Executes yt-dlp and returns the standard output.
     pub async fn download(&self) -> Result<YtDlpResult> {
+        info!("Starting download for links: {:?}", self.links);
         let output = self.spawn_yt_dlp(false).await?.wait_with_output().await?;
 
         if !output.status.success() {
-            return Err(YtDlpError::Failure(String::from_utf8(output.stderr)?));
+            let err_msg = String::from_utf8(output.stderr)?;
+            error!("yt-dlp download failed: {}", err_msg);
+            return Err(YtDlpError::Failure(err_msg));
         }
 
+        info!("yt-dlp download finished successfully");
         Ok(YtDlpResult::new(String::from_utf8(output.stdout)?))
     }
 
     /// Executes yt-dlp as a continuous process, allowing line-by-line output streaming.
     /// Automatically adds `--newline` so progress updates are written on new lines.
     pub async fn download_process(&self) -> Result<YtDlpChild> {
+        info!("Starting download process for links: {:?}", self.links);
         let mut clone = self.clone();
         clone = clone.arg("--newline");
         let mut child = clone.spawn_yt_dlp(false).await?;
@@ -315,11 +321,13 @@ impl YtDlp {
     /// Executes yt-dlp and streams the raw media binary data to standard output.
     /// This automatically sets `--output -` and gives you access to the async stdout reader.
     pub async fn download_to_stream(&self) -> Result<YtDlpStream> {
+        info!("Starting binary stream download for links: {:?}", self.links);
         let mut clone = self.clone();
         clone = clone.arg_with("--output", "-");
         let mut child = clone.spawn_yt_dlp(false).await?;
         
         let stdout = child.stdout.take().ok_or_else(|| {
+            error!("Failed to capture stdout for binary stream");
             YtDlpError::Failure("Failed to capture standard output".to_string())
         })?;
 
@@ -328,27 +336,33 @@ impl YtDlp {
 
     /// Executes yt-dlp with --dump-json and parses the output into VideoInfo.
     pub async fn get_info(&self) -> Result<Vec<VideoInfo>> {
+        info!("Fetching video info for links: {:?}", self.links);
         let output = self.spawn_yt_dlp(true).await?.wait_with_output().await?;
 
         if !output.status.success() {
-            return Err(YtDlpError::Failure(String::from_utf8(output.stderr)?));
+            let err_msg = String::from_utf8(output.stderr)?;
+            error!("yt-dlp get_info failed: {}", err_msg);
+            return Err(YtDlpError::Failure(err_msg));
         }
 
         let stdout = String::from_utf8(output.stdout)?;
         let mut infos = Vec::new();
         for line in stdout.lines() {
             if !line.trim().is_empty() {
+                trace!("Parsing JSON line: {}", line);
                 let info: VideoInfo = serde_json::from_str(line)?;
                 infos.push(info);
             }
         }
 
+        info!("Successfully fetched info for {} videos", infos.len());
         Ok(infos)
     }
 
     async fn spawn_yt_dlp(&self, dump_json: bool) -> Result<tokio::process::Child> {
         if let Some(ref path) = self.output_dir {
             if !path.exists() {
+                debug!("Creating output directory: {:?}", path);
                 fs::create_dir_all(path).await?;
             }
         }
@@ -378,6 +392,7 @@ impl YtDlp {
             cmd.arg(link);
         }
 
+        debug!("Executing command: {:?}", cmd);
         Ok(cmd.spawn()?)
     }
 }
