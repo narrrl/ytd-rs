@@ -1,11 +1,13 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum YoutubeDLError {
-    #[error("failed to execute youtube-dl")]
+pub enum YtDlpError {
+    #[error("failed to execute yt-dlp: {0}")]
     IOError(#[from] std::io::Error),
-    #[error("failed to convert path")]
+    #[error("failed to convert output to string: {0}")]
     UTF8Error(#[from] std::string::FromUtf8Error),
-    #[error("youtube-dl exited with: {0}")]
+    #[error("failed to parse JSON: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("yt-dlp exited with error: {0}")]
     Failure(String),
 }
