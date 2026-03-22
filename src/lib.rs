@@ -125,6 +125,8 @@ impl YtDlpStream {
 }
 
 /// The main builder for configuring and running yt-dlp.
+///
+/// Use this struct to chain configurations and finally execute a download or metadata extraction.
 #[derive(Clone, Debug, Default)]
 pub struct YtDlp {
     links: Vec<String>,
@@ -151,24 +153,40 @@ impl YtDlp {
     }
 
     /// Set a custom path to the yt-dlp executable.
+    ///
+    /// Useful if yt-dlp is not in your PATH or you want to use a specific version.
     pub fn yt_dlp_path(mut self, path: impl Into<String>) -> Self {
         self.executable_path = Some(path.into());
         self
     }
 
     /// Set the output directory for the download.
+    ///
+    /// If the directory does not exist, it will be created during execution.
     pub fn output_dir(mut self, path: PathBuf) -> Self {
         self.output_dir = Some(path);
         self
     }
 
     /// Add a raw argument to the yt-dlp command.
+    ///
+    /// # Example
+    /// ```
+    /// # use ytd_rs::YtDlp;
+    /// let ytd = YtDlp::new("link").arg("--quiet");
+    /// ```
     pub fn arg(mut self, flag: impl Into<String>) -> Self {
         self.args.push((flag.into(), None));
         self
     }
 
     /// Add a raw argument with an accompanying value (e.g., --output template).
+    ///
+    /// # Example
+    /// ```
+    /// # use ytd_rs::YtDlp;
+    /// let ytd = YtDlp::new("link").arg_with("--output", "%(title)s.%(ext)s");
+    /// ```
     pub fn arg_with(mut self, flag: impl Into<String>, value: impl Into<String>) -> Self {
         self.args.push((flag.into(), Some(value.into())));
         self
@@ -304,6 +322,8 @@ impl YtDlp {
     }
 
     /// Executes yt-dlp and returns the standard output.
+    ///
+    /// This method awaits the process to finish and captures the entire output.
     pub async fn download(&self) -> Result<YtDlpResult> {
         info!("Starting download for links: {:?}", self.links);
         let output = self.spawn_yt_dlp(false).await?.wait_with_output().await?;
@@ -323,6 +343,19 @@ impl YtDlp {
 
     /// Executes yt-dlp as a continuous process, allowing line-by-line output streaming.
     /// Automatically adds `--newline` so progress updates are written on new lines.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use ytd_rs::YtDlp;
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut process = YtDlp::new("link").download_process().await?;
+    /// while let Some(line) = process.next_line().await? {
+    ///     println!("{}", line);
+    /// }
+    /// process.wait().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn download_process(&self) -> Result<YtDlpChild> {
         info!("Starting download process for links: {:?}", self.links);
         let mut clone = self.clone();
@@ -339,6 +372,19 @@ impl YtDlp {
 
     /// Executes yt-dlp and streams the raw media binary data to standard output.
     /// This automatically sets `--output -` and gives you access to the async stdout reader.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use ytd_rs::YtDlp;
+    /// # use tokio::io::AsyncReadExt;
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut stream = YtDlp::new("link").download_to_stream().await?;
+    /// let mut buffer = [0; 1024];
+    /// stream.stdout().read(&mut buffer).await?;
+    /// stream.wait().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn download_to_stream(&self) -> Result<YtDlpStream> {
         info!(
             "Starting binary stream download for links: {:?}",
@@ -360,6 +406,18 @@ impl YtDlp {
     }
 
     /// Executes yt-dlp with --dump-json and parses the output into VideoInfo.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use ytd_rs::YtDlp;
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let infos = YtDlp::new("link").get_info().await?;
+    /// for info in infos {
+    ///     println!("Title: {}", info.title);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get_info(&self) -> Result<Vec<VideoInfo>> {
         info!("Fetching video info for links: {:?}", self.links);
         let output = self.spawn_yt_dlp(true).await?.wait_with_output().await?;
