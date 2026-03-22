@@ -89,7 +89,10 @@ impl YtDlpChild {
         if status.success() {
             Ok(())
         } else {
-            Err(YtDlpError::Failure("Process failed".to_string()))
+            Err(YtDlpError::Failure {
+                code: status.code(),
+                stderr: "Process failed".to_string(),
+            })
         }
     }
 }
@@ -113,7 +116,10 @@ impl YtDlpStream {
         if status.success() {
             Ok(())
         } else {
-            Err(YtDlpError::Failure("Process failed".to_string()))
+            Err(YtDlpError::Failure {
+                code: status.code(),
+                stderr: "Process failed".to_string(),
+            })
         }
     }
 }
@@ -124,6 +130,7 @@ pub struct YtDlp {
     links: Vec<String>,
     args: Vec<(String, Option<String>)>,
     output_dir: Option<PathBuf>,
+    executable_path: Option<String>,
 }
 
 impl YtDlp {
@@ -141,6 +148,12 @@ impl YtDlp {
             links,
             ..Default::default()
         }
+    }
+
+    /// Set a custom path to the yt-dlp executable.
+    pub fn yt_dlp_path(mut self, path: impl Into<String>) -> Self {
+        self.executable_path = Some(path.into());
+        self
     }
 
     /// Set the output directory for the download.
@@ -298,7 +311,10 @@ impl YtDlp {
         if !output.status.success() {
             let err_msg = String::from_utf8(output.stderr)?;
             error!("yt-dlp download failed: {}", err_msg);
-            return Err(YtDlpError::Failure(err_msg));
+            return Err(YtDlpError::Failure {
+                code: output.status.code(),
+                stderr: err_msg,
+            });
         }
 
         info!("yt-dlp download finished successfully");
@@ -328,7 +344,10 @@ impl YtDlp {
         
         let stdout = child.stdout.take().ok_or_else(|| {
             error!("Failed to capture stdout for binary stream");
-            YtDlpError::Failure("Failed to capture standard output".to_string())
+            YtDlpError::Failure {
+                code: None,
+                stderr: "Failed to capture standard output".to_string(),
+            }
         })?;
 
         Ok(YtDlpStream { child, stdout })
@@ -342,7 +361,10 @@ impl YtDlp {
         if !output.status.success() {
             let err_msg = String::from_utf8(output.stderr)?;
             error!("yt-dlp get_info failed: {}", err_msg);
-            return Err(YtDlpError::Failure(err_msg));
+            return Err(YtDlpError::Failure {
+                code: output.status.code(),
+                stderr: err_msg,
+            });
         }
 
         let stdout = String::from_utf8(output.stdout)?;
@@ -360,14 +382,13 @@ impl YtDlp {
     }
 
     async fn spawn_yt_dlp(&self, dump_json: bool) -> Result<tokio::process::Child> {
-        if let Some(ref path) = self.output_dir {
-            if !path.exists() {
-                debug!("Creating output directory: {:?}", path);
-                fs::create_dir_all(path).await?;
-            }
+        if let Some(path) = self.output_dir.as_ref().filter(|p| !p.exists()) {
+            debug!("Creating output directory: {:?}", path);
+            fs::create_dir_all(path).await?;
         }
 
-        let mut cmd = Command::new("yt-dlp");
+        let cmd_path = self.executable_path.as_deref().unwrap_or("yt-dlp");
+        let mut cmd = Command::new(cmd_path);
 
         if let Some(ref path) = self.output_dir {
             cmd.current_dir(path);

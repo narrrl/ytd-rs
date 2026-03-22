@@ -8,6 +8,9 @@ pub enum YtDlpError {
     UTF8Error(#[from] std::string::FromUtf8Error),
     #[error("failed to parse JSON: {0}")]
     JsonError(#[from] serde_json::Error),
-    #[error("yt-dlp exited with error: {0}")]
-    Failure(String),
+    #[error("yt-dlp exited with status {code:?}: {stderr}")]
+    Failure {
+        code: Option<i32>,
+        stderr: String,
+    },
 }
