@@ -93,6 +93,30 @@ impl YtDlpChild {
     }
 }
 
+/// A running yt-dlp process that streams raw media bytes directly to standard output.
+pub struct YtDlpStream {
+    child: tokio::process::Child,
+    stdout: tokio::process::ChildStdout,
+}
+
+impl YtDlpStream {
+    /// Returns a mutable reference to the standard output to read bytes.
+    /// You can use this with `tokio::io::AsyncReadExt` methods like `read_buf`.
+    pub fn stdout(&mut self) -> &mut tokio::process::ChildStdout {
+        &mut self.stdout
+    }
+
+    /// Waits for the process to complete and checks its status.
+    pub async fn wait(mut self) -> Result<()> {
+        let status = self.child.wait().await?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(YtDlpError::Failure("Process failed".to_string()))
+        }
+    }
+}
+
 /// The main builder for configuring and running yt-dlp.
 #[derive(Clone, Debug, Default)]
 pub struct YtDlp {
@@ -286,6 +310,20 @@ impl YtDlp {
         let stdout = child.stdout.take().map(|stdout| BufReader::new(stdout).lines());
 
         Ok(YtDlpChild { child, stdout })
+    }
+
+    /// Executes yt-dlp and streams the raw media binary data to standard output.
+    /// This automatically sets `--output -` and gives you access to the async stdout reader.
+    pub async fn download_to_stream(&self) -> Result<YtDlpStream> {
+        let mut clone = self.clone();
+        clone = clone.arg_with("--output", "-");
+        let mut child = clone.spawn_yt_dlp(false).await?;
+        
+        let stdout = child.stdout.take().ok_or_else(|| {
+            YtDlpError::Failure("Failed to capture standard output".to_string())
+        })?;
+
+        Ok(YtDlpStream { child, stdout })
     }
 
     /// Executes yt-dlp with --dump-json and parses the output into VideoInfo.

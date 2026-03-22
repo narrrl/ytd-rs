@@ -86,5 +86,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Discord Bots / Media Streaming (Direct Binary Stream)
+If you are building an application like a Discord bot, you often want to stream the raw binary audio data chunk-by-chunk to an engine like `ffmpeg` or `songbird` instead of downloading the whole file first.
+
+```rust
+use ytd_rs::YtDlp;
+use tokio::io::AsyncReadExt;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut stream = YtDlp::new("https://www.youtube.com/watch?v=uTO0KnDsVH0")
+        .best_audio()
+        .download_to_stream()
+        .await?;
+
+    let mut buffer = [0; 1024];
+    loop {
+        let bytes_read = stream.stdout().read(&mut buffer).await?;
+        if bytes_read == 0 { break; } // EOF
+        
+        // Process your raw chunk of audio data here
+        // e.g., send it to your bot's audio engine
+        // send_to_audio_engine(&buffer[..bytes_read]);
+    }
+
+    stream.wait().await?;
+    Ok(())
+}
+```
+
+**Alternative for Discord Bots:** You can also use `.get_info().await?` to extract the direct media URL (`infos[0].url`) and pass that directly to your audio engine, which saves bot bandwidth!
+
 ## License
 MIT
