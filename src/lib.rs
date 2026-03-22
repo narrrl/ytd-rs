@@ -124,6 +124,106 @@ impl YtDlp {
         self.arg_with("--output", template)
     }
 
+    /// Set the video/audio format (e.g., "best", "mp4").
+    pub fn format(self, format: impl Into<String>) -> Self {
+        self.arg_with("--format", format)
+    }
+
+    /// Select the best quality video and audio.
+    pub fn best_quality(self) -> Self {
+        self.format("bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best")
+    }
+
+    /// Path to a cookies file.
+    pub fn cookies(self, path: impl Into<String>) -> Self {
+        self.arg_with("--cookies", path)
+    }
+
+    /// Load cookies from a browser (e.g., "firefox", "chrome").
+    pub fn cookies_from_browser(self, browser: impl Into<String>) -> Self {
+        self.arg_with("--cookies-from-browser", browser)
+    }
+
+    /// Provide a username for authentication.
+    pub fn username(self, username: impl Into<String>) -> Self {
+        self.arg_with("--username", username)
+    }
+
+    /// Provide a password for authentication.
+    pub fn password(self, password: impl Into<String>) -> Self {
+        self.arg_with("--password", password)
+    }
+
+    /// Enable or disable playlist downloading.
+    pub fn playlist(self, enabled: bool) -> Self {
+        if enabled {
+            self.arg("--yes-playlist")
+        } else {
+            self.arg("--no-playlist")
+        }
+    }
+
+    /// Specify specific playlist items to download (e.g., "1-3,7,10-13").
+    pub fn playlist_items(self, items: impl Into<String>) -> Self {
+        self.arg_with("--playlist-items", items)
+    }
+
+    /// Write subtitles to a file.
+    pub fn write_subtitles(self, enabled: bool) -> Self {
+        if enabled {
+            self.arg("--write-sub")
+        } else {
+            self
+        }
+    }
+
+    /// Specify subtitle languages to download (e.g., vec!["en", "de"]).
+    pub fn sub_langs(self, langs: Vec<String>) -> Self {
+        self.arg_with("--sub-langs", langs.join(","))
+    }
+
+    /// Embed subtitles into the video file.
+    pub fn embed_subtitles(self, enabled: bool) -> Self {
+        if enabled {
+            self.arg("--embed-subs")
+        } else {
+            self
+        }
+    }
+
+    /// Embed metadata into the file.
+    pub fn embed_metadata(self, enabled: bool) -> Self {
+        if enabled {
+            self.arg("--embed-metadata")
+        } else {
+            self
+        }
+    }
+
+    /// Write thumbnail to a file.
+    pub fn write_thumbnail(self, enabled: bool) -> Self {
+        if enabled {
+            self.arg("--write-thumbnail")
+        } else {
+            self
+        }
+    }
+
+    /// Use a proxy (e.g., "http://127.0.0.1:8080").
+    pub fn proxy(self, proxy: impl Into<String>) -> Self {
+        self.arg_with("--proxy", proxy)
+    }
+
+    /// Limit download rate (e.g., "1M", "50K").
+    pub fn limit_rate(self, rate: impl Into<String>) -> Self {
+        self.arg_with("--limit-rate", rate)
+    }
+
+    /// Set number of retries.
+    pub fn retries(self, retries: u32) -> Self {
+        self.arg_with("--retries", retries.to_string())
+    }
+
     /// Executes yt-dlp and returns the standard output.
     pub async fn download(&self) -> Result<YtDlpResult> {
         let output = self.spawn_yt_dlp(false).await?;
